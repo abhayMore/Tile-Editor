@@ -1,61 +1,168 @@
-#include "imgui.h"
-#include "imgui-SFML.h"
+#include <SFML/Graphics.hpp>
+#include <imgui.h>
+#include <imgui-SFML.h>
+#include <iostream>
 
-#include "SFML/Graphics.hpp"
-
-int main()
+class Grid
 {
-    sf::RenderWindow window(sf::VideoMode(800, 800), "Window Title");
+private:
+    ImVec2 m_canvasSize;
+    ImVec2 m_cellSize;
+    std::vector<std::vector<ImVec4>> m_cellColors; 
+
+public:
+    Grid(ImVec2 canvasSize, ImVec2 cellSize) : m_canvasSize(canvasSize), m_cellSize(cellSize) {
+        int numCols = static_cast<int>(m_canvasSize.x / m_cellSize.x);
+        int numRows = static_cast<int>(m_canvasSize.y / m_cellSize.y);
+        m_cellColors.resize(numRows, std::vector<ImVec4>(numCols));
+
+    }
+
+    void render(ImDrawList* drawList, int highlightCellX, int highlightCellY, bool showGrid) const {
+        ImVec2 windowPos = ImGui::GetCursorScreenPos();
+
+        for (int row = 0; row < m_cellColors.size(); ++row) {
+            for (int col = 0; col < m_cellColors[row].size(); ++col) {
+                ImVec4 cellColor = m_cellColors[row][col];
+                float cellX = windowPos.x + col * m_cellSize.x;
+                float cellY = windowPos.y + row * m_cellSize.y;
+                drawList->AddRectFilled(ImVec2(cellX, cellY), ImVec2(cellX + m_cellSize.x, cellY + m_cellSize.y), ImGui::ColorConvertFloat4ToU32(cellColor));
+            }
+        }
+
+        if (showGrid) {
+
+            // Render horizontal grid lines
+            drawList->AddLine(ImVec2(windowPos.x, windowPos.y), ImVec2(windowPos.x + m_canvasSize.x, windowPos.y), IM_COL32(150, 150, 150, 255));
+            for (float y = windowPos.y + m_cellSize.y - 1; y < windowPos.y + m_canvasSize.y; y += m_cellSize.y) {
+                drawList->AddLine(ImVec2(windowPos.x, y), ImVec2(windowPos.x + m_canvasSize.x, y), IM_COL32(150, 150, 150, 255));
+            }
+
+            // Render vertical grid lines
+            drawList->AddLine(ImVec2(windowPos.x, windowPos.y), ImVec2(windowPos.x, windowPos.y + m_canvasSize.y), IM_COL32(150, 150, 150, 255));
+            for (float x = windowPos.x + m_cellSize.x - 1; x < windowPos.x + m_canvasSize.x; x += m_cellSize.x) {
+                drawList->AddLine(ImVec2(x, windowPos.y), ImVec2(x, windowPos.y + m_canvasSize.y), IM_COL32(150, 150, 150, 255));
+            }
+        }
+               
+    }
+    void setCellColor(int row, int col, const ImVec4& color) {
+        if (row >= 0 && row < m_cellColors.size() && col >= 0 && col < m_cellColors[0].size()) {
+            m_cellColors[row][col] = color;
+        }
+    }
+};
+
+int main() {
+    sf::RenderWindow window(sf::VideoMode(1200, 900), "Tile Editor");
+
+
     ImGui::SFML::Init(window);
 
-    bool circleExists = true;
-    float circleRadius = 200.0f;
-    int circleSegments = 100;
-    float circleColor[3] = { (float)204 / 255, (float)77 / 255, (float)5 / 255 };
-    sf::CircleShape shape(circleRadius, circleSegments);
-    shape.setFillColor(sf::Color
-    (
-        (int)(circleColor[0] * 255), 
-        (int)(circleColor[1] * 255), 
-        (int)(circleColor[2] * 255)
-    )); // Color circle
-    shape.setOrigin(circleRadius, circleRadius);
-    shape.setPosition(400, 400); // Center circle
+    ImVec2 canvasSize(800, 640); 
+    ImVec2 cellSize(32, 32); 
 
-    sf::Clock deltaClock;
-    while (window.isOpen())
+    Grid grid(canvasSize, cellSize);
+
+    // Default selected color
+    ImVec4 selectedColor(1.0f, 0.0f, 0.0f, 1.0f); 
+    int highlightCellX = -1; 
+    int highlightCellY = -1;
+
+    ImVec2 windowPos;
+    bool showGrid = true;
+    bool m_mouseButtonPressed = false;
+
+    sf::Clock deltaTime;
+    while (window.isOpen()) 
     {
         sf::Event event;
-        while (window.pollEvent(event))
+        while (window.pollEvent(event)) 
         {
             ImGui::SFML::ProcessEvent(event);
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
-        ImGui::SFML::Update(window, deltaClock.restart());
 
-        ImGui::Begin("Window title");
-        ImGui::Text("Window text!");
-        ImGui::Checkbox("Circle", &circleExists);
-        ImGui::SliderFloat("Radius", &circleRadius, 100.0f, 300.0f);
-        ImGui::SliderInt("Sides", &circleSegments, 3, 150);
-        ImGui::ColorEdit3("Color Circle", circleColor);
+            switch (event.type)
+            {
+            case sf::Event::Closed:
+            {
+                window.close();
+            }
+            break;
+
+            case sf::Event::MouseButtonPressed:
+            {
+                switch (event.mouseButton.button)
+                {
+                case sf::Mouse::Left:
+                {
+                    m_mouseButtonPressed = true;
+                }
+                break;
+
+                default:
+                    break;
+                }
+            }
+            break;
+
+            case sf::Event::MouseButtonReleased:
+            {
+                switch (event.mouseButton.button)
+                {
+                case sf::Mouse::Left:
+                {
+                    m_mouseButtonPressed = false;
+                }
+                break;
+
+                default:
+                    break;
+                }
+            }
+            break;
+
+            default:
+                break;
+            }
+        }
+
+        ImGui::SFML::Update(window, deltaTime.restart());
+
+        window.clear(sf::Color(18, 33, 43));
+
+        //GRID WINDOW
+        ImGui::Begin("Tile Grid", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+        ImGui::BeginChild("GridChild", ImVec2(canvasSize.x, canvasSize.y), false, ImGuiWindowFlags_NoScrollbar);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        grid.render(drawList, highlightCellX, highlightCellY, showGrid);
+        
+        if (m_mouseButtonPressed)
+        {
+            windowPos = ImGui::GetCursorScreenPos();
+            sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+
+            if (mousePos.x >= windowPos.x && mousePos.x < windowPos.x + canvasSize.x &&
+                mousePos.y >= windowPos.y && mousePos.y < windowPos.y + canvasSize.y) {
+                highlightCellX = (mousePos.x - windowPos.x) / cellSize.x;
+                highlightCellY = (mousePos.y - windowPos.y) / cellSize.y;
+
+                grid.setCellColor(highlightCellY, highlightCellX, selectedColor);
+
+            }
+        }
+        ImGui::EndChild();
         ImGui::End();
 
-        shape.setRadius(circleRadius);
-        shape.setOrigin(circleRadius, circleRadius);
-        shape.setPointCount(circleSegments);
-        shape.setFillColor(sf::Color
-        (
-            (int)(circleColor[0] * 255),
-            (int)(circleColor[1] * 255),
-            (int)(circleColor[2] * 255)
-        )); // Color circle
+        //EDIT PANEL WINDOW
+        ImGui::Begin("Color Palette");
+        ImGui::ColorEdit4("Selected Color", reinterpret_cast<float*>(&selectedColor), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        ImGui::Checkbox("Show Grid", &showGrid);
 
-        window.clear(sf::Color(18, 33, 43)); // Color background
-        if (circleExists)
-            window.draw(shape);
+        ImGui::End();
+
         ImGui::SFML::Render(window);
+
         window.display();
     }
 

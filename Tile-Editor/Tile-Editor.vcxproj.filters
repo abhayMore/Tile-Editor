@@ -36,6 +36,9 @@
     <ClCompile Include="Source\imgui_demo.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_demo.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">

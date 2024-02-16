@@ -56,7 +56,6 @@ public:
 int main() {
     sf::RenderWindow window(sf::VideoMode(1200, 900), "Tile Editor");
 
-
     ImGui::SFML::Init(window);
 
     ImVec2 canvasSize(800, 640); 
@@ -64,7 +63,7 @@ int main() {
 
     Grid grid(canvasSize, cellSize);
 
-    // Default selected color
+    // Default selected color in Color Palette
     ImVec4 selectedColor(1.0f, 0.0f, 0.0f, 1.0f); 
     int highlightCellX = -1; 
     int highlightCellY = -1;
@@ -72,6 +71,8 @@ int main() {
     ImVec2 windowPos;
     bool showGrid = true;
     bool m_mouseButtonPressed = false;
+    bool m_leftMouseButtonPressed = false;
+    bool m_rightMouseButtonPressed = false;
 
     sf::Clock deltaTime;
     while (window.isOpen()) 
@@ -91,11 +92,18 @@ int main() {
 
             case sf::Event::MouseButtonPressed:
             {
+                m_mouseButtonPressed = true;
                 switch (event.mouseButton.button)
                 {
                 case sf::Mouse::Left:
                 {
-                    m_mouseButtonPressed = true;
+                    m_leftMouseButtonPressed = true;
+                }
+                break;
+
+                case sf::Mouse::Right:
+                {
+                    m_rightMouseButtonPressed = true;
                 }
                 break;
 
@@ -107,11 +115,18 @@ int main() {
 
             case sf::Event::MouseButtonReleased:
             {
+                m_mouseButtonPressed = false;
                 switch (event.mouseButton.button)
                 {
                 case sf::Mouse::Left:
                 {
-                    m_mouseButtonPressed = false;
+                    m_leftMouseButtonPressed = false;
+                }
+                break;
+
+                case sf::Mouse::Right:
+                {
+                    m_rightMouseButtonPressed = false;              
                 }
                 break;
 
@@ -147,7 +162,10 @@ int main() {
                 highlightCellX = (mousePos.x - windowPos.x) / cellSize.x;
                 highlightCellY = (mousePos.y - windowPos.y) / cellSize.y;
 
-                grid.setCellColor(highlightCellY, highlightCellX, selectedColor);
+                if(m_leftMouseButtonPressed)
+                    grid.setCellColor(highlightCellY, highlightCellX, selectedColor);
+                else if(m_rightMouseButtonPressed)
+                    grid.setCellColor(highlightCellY, highlightCellX, {0,0,0,0});
 
             }
         }

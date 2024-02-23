@@ -2,30 +2,38 @@
 #include <imgui.h>
 #include <imgui-SFML.h>
 #include <iostream>
+#include <unordered_map>
+
+template<>
+struct std::hash<std::pair<int, int>> {
+    size_t operator()(const std::pair<int, int> cellCoord) const
+    {
+        return std::hash<int>()(cellCoord.first) ^ std::hash<int>()(cellCoord.second);
+    }
+};
 
 class TileLayer
 {
 private:
-    std::vector<std::vector<ImVec4>> m_cellColors;
+    std::unordered_map<std::pair<int, int>, ImVec4> m_cellColors;
     bool m_isVisible;
 
 public:
-    TileLayer(int numRows, int numCols, bool isVisible = true) : m_isVisible(isVisible)
+    TileLayer(bool isVisible = true) : m_isVisible(isVisible)
     {
-        m_cellColors.resize(numRows, std::vector<ImVec4>(numCols));
-
     }
 
     void setTile(int row, int col, const ImVec4& color) {
-        if (row >= 0 && row < m_cellColors.size() && col >= 0 && col < m_cellColors[0].size()) {
-
-            m_cellColors[row][col] = color;
-        }
+        m_cellColors[std::make_pair(row, col)] = color;
     }
 
     ImVec4 getTile(int row, int col) const
     {
-        return m_cellColors[row][col];
+        auto it = m_cellColors.find(std::make_pair(row, col));
+        if (it != m_cellColors.end())
+            return it->second;
+        else
+            return ImVec4(0, 0, 0, 0);
     }
 
     void setVisibility(bool visible) 
@@ -52,17 +60,16 @@ private:
     ImVec2 m_cellSize;
     int m_numRows;
     int m_numCols;
-    std::map<int, TileLayer> m_tileLayers;
+    std::unordered_map<int, TileLayer> m_tileLayers;
     int m_selectedLayer = 1;
 
-    
 public:
     Grid(ImVec2 canvasSize, ImVec2 cellSize) : 
         m_canvasSize(canvasSize), 
         m_cellSize(cellSize), 
         m_numRows(static_cast<int>(m_canvasSize.y / m_cellSize.y)),
         m_numCols(static_cast<int>(m_canvasSize.x / m_cellSize.x)),
-        m_tileLayers{ {1, TileLayer(m_numRows, m_numCols)}}
+        m_tileLayers{ {1, TileLayer()}}
     {
     }
 
@@ -79,6 +86,7 @@ public:
                     for (int col = 0; col < m_numCols; ++col)
                     {
                         ImVec4 cellColor = layer.second.getTile(row, col);
+                        ImVec4 color = { 0,0,0,0 };
                         float cellX = windowPos.x + col * m_cellSize.x;
                         float cellY = windowPos.y + row * m_cellSize.y;
                         drawList->AddRectFilled(ImVec2(cellX, cellY), ImVec2(cellX + m_cellSize.x, cellY + m_cellSize.y), ImGui::ColorConvertFloat4ToU32(cellColor));
@@ -133,12 +141,44 @@ public:
             }
             
         }
-        if (ImGui::Button("Add Layer")) {
-            int newLayerNumber = m_tileLayers.size() + 1;
-            m_tileLayers.insert({ newLayerNumber, TileLayer(m_numRows, m_numCols) });
-            m_selectedLayer = newLayerNumber;
-        }
+        if (ImGui::Button("Add")) {
 
+            for (int i = 1; i <= m_tileLayers.size() + 1; i++)
+            {
+                if (m_tileLayers.find(i) == m_tileLayers.end())
+                {
+                    m_tileLayers.insert({ i, TileLayer() });
+                    m_selectedLayer = i;
+                    break;
+                }
+            }
+        }
+        ImGui::SameLine();
+
+        if (ImGui::Button("Delete")) {
+            auto it = m_tileLayers.find(m_selectedLayer);
+            if (it != m_tileLayers.end())
+            {
+                auto prevIt = (it == m_tileLayers.begin()) ? m_tileLayers.end() : std::prev(it);
+                auto layer = m_tileLayers.erase(it);
+                if (layer != m_tileLayers.end())
+                {
+                    m_selectedLayer = layer->first;
+                }
+                else 
+                {
+                    if (prevIt != m_tileLayers.end())
+                    {
+                        m_selectedLayer = prevIt->first;
+                    }
+                    else
+                    {
+                        m_selectedLayer = 0;
+                    }
+                }               
+            }
+            
+        }
         ImGui::End();
     }
 };
@@ -243,15 +283,17 @@ int main()
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         grid.render(drawList, highlightCellX, highlightCellY, showGrid);
         grid.drawLayerWindow();
-        if (m_mouseButtonPressed)
+
+        
+        if (m_mouseButtonPressed && showGrid)
         {
             windowPos = ImGui::GetCursorScreenPos();
             sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 
             if (mousePos.x >= windowPos.x && mousePos.x < windowPos.x + canvasSize.x &&
                 mousePos.y >= windowPos.y && mousePos.y < windowPos.y + canvasSize.y) {
-                highlightCellX = (mousePos.x - windowPos.x) / cellSize.x;
-                highlightCellY = (mousePos.y - windowPos.y) / cellSize.y;
+                highlightCellX = static_cast<int>((mousePos.x - windowPos.x) / cellSize.x);
+                highlightCellY = static_cast<int>((mousePos.y - windowPos.y) / cellSize.y);
 
                 if(m_leftMouseButtonPressed && ImGui::IsWindowHovered())
                     grid.setCellColor(highlightCellY, highlightCellX, selectedColor);

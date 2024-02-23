@@ -34,3 +34,5 @@
 /Tile-Editor/Dependencies/SFML/doc/html
 /Tile-Editor/Dependencies/SFML/examples
 /Tile-Editor/Dependencies/SFML/lib/cmake/SFML
+/Tile-Editor/x64/Release
+/x64/Release
